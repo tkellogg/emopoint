@@ -1,0 +1,7 @@
+.env
+.DS_Store
+*.pdf
+*.parquet
+*.csv
+*.pyc
+__pycache__/

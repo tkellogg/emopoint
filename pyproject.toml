@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "emopoint"
+version = "0.1.0"
+description = "A library for mapping text into a multidimensional embedding space representing emotion"
+authors = ["Tim Kellogg <timothy.kellogg@gmail.com>"]
+license = "Apache 2"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "^1.26.4"
+
+[tool.poetry.group.dev.dependencies]
+scikit-learn = "^1.5.0"
+polars = "^0.20.31"
+streamlit = "^1.35.0"
+watchdog = "^4.0.1"
+tiktoken = "^0.7.0"
+openai = "^1.31.0"
+python-dotenv = "^1.0.1"
+matplotlib = "^3.9.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
