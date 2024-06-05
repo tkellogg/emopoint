@@ -13,7 +13,7 @@ from sklearn.model_selection import train_test_split
 import streamlit as st
 import tiktoken as tk
 
-from emopoint import EMOTIONS
+from emopoint import EMOTIONS, EKMAN_MAP
 
 
 dotenv.load_dotenv()
@@ -73,6 +73,27 @@ class Model:
 def load_embeddings(path: pathlib.Path) -> pl.DataFrame:
     return pl.read_parquet(path)
 
+def map_to_ekman(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Map the embeddings to the EKMAN space.
+    """
+    return (
+        df
+        .select(
+             pl.col("id"),
+             pl.col("text"),
+             pl.col("embedding"),
+             *[
+                 functools.reduce(
+                     lambda acc, emotion: acc | pl.col(emotion),
+                     emo_list,
+                     pl.lit(False),
+                 ).alias(ekman)
+                 for ekman, emo_list in EKMAN_MAP.items()
+             ]
+         )
+    )
+
 @dataclasses.dataclass
 class Dimension:
     label: str
@@ -99,8 +120,6 @@ def main():
             pl.col("neutral") == pl.lit(1),
         ))
 
-    empty_df = empty(raw_df)
-
     def slice(emotion: str, dataset_df: pl.DataFrame=raw_df) -> pl.DataFrame:
         return dataset_df.filter(pl.col(emotion) > 0)
 
@@ -108,26 +127,29 @@ def main():
         return pl.concat([a, b])["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy()
 
 
-    def train_dimension(emotion: str, dataset_df: pl.DataFrame) -> Dimension:
+    def train_dimension(emotion: str, positive_df: pl.DataFrame, negative_df: pl.DataFrame) -> Dimension:
         """
         Calculate the dimension of a given emotion.
         """
-        signal_df = slice(emotion, dataset_df)
-        assert signal_df.shape[0] <= empty_df.shape[0], f"signal_df.shape[0]={signal_df.shape[0]} > empty_df.shape[0]={empty_df.shape[0]}"
-        neutral_df = empty(dataset_df).sample(signal_df.shape[0])
-        signal_train_df, signal_test_df, neutral_train_df, neutral_test_df = train_test_split(signal_df, neutral_df, train_size=0.8)
+        if positive_df.shape[0] > negative_df.shape[0]:
+            positive_df = positive_df.sample(negative_df.shape[0])
+        elif positive_df.shape[0] < negative_df.shape[0]:
+            negative_df = negative_df.sample(positive_df.shape[0])
+
+        negative_df = negative_df.sample(positive_df.shape[0])
+        signal_train_df, signal_test_df, neutral_train_df, neutral_test_df = train_test_split(positive_df, negative_df, train_size=0.8)
         
         train_arr = concat(signal_train_df, neutral_train_df)
 
         pca = PCA(n_components=1)
         pca.fit(train_arr)
 
-        signal_result_arr = pca.transform(signal_test_df["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy())
-        neutral_result_arr = pca.transform(neutral_test_df["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy())
+        signal_test_arr = pca.transform(signal_test_df["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy())
+        neutral_test_arr = pca.transform(neutral_test_df["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy())
 
         fig, ax = plt.subplots()
-        ax.hist(signal_result_arr, bins=30, alpha=0.5, label='Signal', edgecolor='black')
-        ax.hist(neutral_result_arr, bins=30, alpha=0.5, label='Neutral', edgecolor='black')
+        ax.hist(signal_test_arr, bins=30, alpha=0.5, label='Left', edgecolor='black')
+        ax.hist(neutral_test_arr, bins=30, alpha=0.5, label='Right', edgecolor='black')
 
         # Adding labels, title, and legend
         ax.set_title(f"Distribution of {emotion}")
@@ -135,20 +157,36 @@ def main():
         ax.set_ylabel('Frequency')
         ax.legend()
 
+        y_true = np.concatenate([np.ones(len(signal_test_arr)), np.zeros(len(neutral_test_arr))])
+
+        reg = linear_model.LogisticRegression()
+        reg.fit(np.concatenate([signal_test_arr, neutral_test_arr]), y_true)
+
+        ax.axvline(reg.classes_[0], color='r', linestyle='--')
         # Display the histogram in Streamlit
         st.pyplot(fig)
 
-        y_true = np.concatenate([np.ones(len(signal_result_arr)), np.zeros(len(neutral_result_arr))])
-
-        reg = linear_model.LogisticRegression()
-        reg.fit(np.concatenate([signal_result_arr, neutral_result_arr]), y_true)
 
         # signal_result_arr = np.array([x < 0 for x in signal_result_arr])
         # neutral_result_arr = np.array([x >= 0 for x in neutral_result_arr])
-        signal_result_arr = reg.predict(signal_result_arr)
-        neutral_result_arr = reg.predict(neutral_result_arr)
+        signal_result_arr = reg.predict(signal_test_arr)
+        neutral_result_arr = reg.predict(neutral_test_arr)
         
         y_pred = np.concatenate([signal_result_arr, neutral_result_arr])
+
+        # result_df = (
+        #     pl.DataFrame({
+        #         "true": y_true,
+        #         "pred": y_pred,
+        #         "id": np.concatenate([signal_test_df["id"], neutral_test_df["id"]]),
+        #     })
+        #     .filter(pl.col("pred") != pl.col("true"))
+        #     .join(raw_df, on="id", how="inner")
+        # )
+        # st.table(pl.DataFrame({
+        #     "count": pl.Series([result_df.filter(pl.col(emo) == 1).count().rows()[0][0] for emo in EMOTIONS]),
+        #     "emotion": pl.Series(EMOTIONS),
+        # }).sort("count", descending=True))
         
         return Dimension(
             label=emotion,
@@ -167,7 +205,18 @@ def main():
 
     def train_dimensions(dataset_df: pl.DataFrame) -> list[Dimension]:
         with st.spinner(text="Training dimensions..."):
-            return [train_dimension(emotion, dataset_df) for emotion in EMOTIONS if emotion != "neutral"]
+            return [train_dimension(emotion, slice(emotion, dataset_df), empty(dataset_df)) 
+                    for emotion in EMOTIONS if emotion != "neutral"]
+
+    def train_dimensions_ekman(dataset_df: pl.DataFrame) -> list[Dimension]:
+        with st.spinner(text="Training dimensions..."):
+            # return [train_dimension(emotion, slice(emotion, dataset_df), empty(dataset_df)) 
+            #         for emotion in EKMAN_MAP.keys() if emotion != "neutral"]
+            return [
+                train_dimension("joy_sadness", slice("joy", dataset_df), slice("sadness", dataset_df)),
+                train_dimension("anger_fear", slice("anger", dataset_df), slice("fear", dataset_df)),
+                train_dimension("surprise_disgust", slice("surprise", dataset_df), slice("disgust", dataset_df)),
+            ]
 
 
     model = st.selectbox('Model', [
@@ -190,7 +239,7 @@ def main():
     
 
     # if st.button("Train Model"):
-    dims = train_dimensions(dataset_df)
+    dims = train_dimensions_ekman(dataset_df)
     st.table(
         pl.DataFrame({
             "emotion": [dim.label for dim in dims],
