@@ -137,15 +137,18 @@ def main():
             negative_df = negative_df.sample(positive_df.shape[0])
 
         negative_df = negative_df.sample(positive_df.shape[0])
-        signal_train_df, signal_test_df, neutral_train_df, neutral_test_df = train_test_split(positive_df, negative_df, train_size=0.8)
+        signal_train_df, signal_test_df, negative_train_df, negative_test_df = train_test_split(positive_df, negative_df, train_size=0.8)
         
-        train_arr = concat(signal_train_df, neutral_train_df)
+        train_arr = concat(signal_train_df, negative_train_df)
 
         pca = PCA(n_components=1)
         pca.fit(train_arr)
 
-        signal_test_arr = pca.transform(signal_test_df["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy())
-        neutral_test_arr = pca.transform(neutral_test_df["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy())
+        # signal_test_arr = pca.transform(signal_test_df["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy())
+        # neutral_test_arr = pca.transform(negative_test_df["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy())
+        signal_test_arr = (pca.components_[0].reshape(1, -1) @ signal_test_df["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy().T).T
+        neutral_test_arr = (pca.components_[0].reshape(1, -1) @ negative_test_df["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy().T).T
+        print(signal_test_arr.shape, neutral_test_arr.shape)
 
         fig, ax = plt.subplots()
         ax.hist(signal_test_arr, bins=30, alpha=0.5, label='Left', edgecolor='black')
