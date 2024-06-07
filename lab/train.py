@@ -2,10 +2,12 @@ import dataclasses
 import functools
 import os
 import pathlib
+
 import dotenv
 import matplotlib.pyplot as plt
 import numpy as np
 import openai
+from plotly import express as px, graph_objects as go
 import polars as pl
 from sklearn import metrics, linear_model
 from sklearn.decomposition import PCA
@@ -13,7 +15,7 @@ from sklearn.model_selection import train_test_split
 import streamlit as st
 import tiktoken as tk
 
-from emopoint import EMOTIONS, EKMAN_MAP
+from emopoint import EMOTIONS, EKMAN_MAP, DimLabel, EmoModel
 
 
 dotenv.load_dotenv()
@@ -29,6 +31,10 @@ class Model:
     @property
     def path(self) -> pathlib.Path:
         return pathlib.Path(f"data/models/{self.label}.parquet")
+
+    @property
+    def num_dimensions(self) -> int:
+        return self.opts.get("dimensions", 1536)
 
     def generate_df(self, raw_df: pl.DataFrame) -> pl.DataFrame:
         """
@@ -97,9 +103,17 @@ def map_to_ekman(df: pl.DataFrame) -> pl.DataFrame:
 @dataclasses.dataclass
 class Dimension:
     label: str
+    labels: tuple[str, str]
     pca: PCA
     reg: linear_model.LogisticRegression
     metrics: dict[str, float]
+
+    @property
+    def ordered_labels(self) -> tuple[str, str]:
+        if self.metrics["positive"] >= self.metrics["negative"]:
+            return self.labels
+        else:
+            return self.labels[::-1]
 
 def main():
 
@@ -127,43 +141,44 @@ def main():
         return pl.concat([a, b])["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy()
 
 
-    def train_dimension(emotion: str, positive_df: pl.DataFrame, negative_df: pl.DataFrame) -> Dimension:
+    def train_dimension(emotions: tuple[str, str], positive_df: pl.DataFrame, negative_df: pl.DataFrame) -> Dimension:
         """
         Calculate the dimension of a given emotion.
         """
+        emotion = "_".join(emotions)
+
         if positive_df.shape[0] > negative_df.shape[0]:
             positive_df = positive_df.sample(negative_df.shape[0])
         elif positive_df.shape[0] < negative_df.shape[0]:
             negative_df = negative_df.sample(positive_df.shape[0])
 
         negative_df = negative_df.sample(positive_df.shape[0])
-        signal_train_df, signal_test_df, negative_train_df, negative_test_df = train_test_split(positive_df, negative_df, train_size=0.8)
+        positive_train_df, positive_test_df, negative_train_df, negative_test_df = train_test_split(positive_df, negative_df, train_size=0.8)
         
-        train_arr = concat(signal_train_df, negative_train_df)
+        train_arr = concat(positive_train_df, negative_train_df)
 
         pca = PCA(n_components=1)
         pca.fit(train_arr)
 
         # signal_test_arr = pca.transform(signal_test_df["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy())
         # neutral_test_arr = pca.transform(negative_test_df["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy())
-        signal_test_arr = (pca.components_[0].reshape(1, -1) @ signal_test_df["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy().T).T
-        neutral_test_arr = (pca.components_[0].reshape(1, -1) @ negative_test_df["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy().T).T
-        print(signal_test_arr.shape, neutral_test_arr.shape)
+        positive_test_arr = (pca.components_[0].reshape(1, -1) @ positive_test_df["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy().T).T
+        negative_test_arr = (pca.components_[0].reshape(1, -1) @ negative_test_df["embedding"].cast(pl.Array(pl.Float32, (1536,))).to_numpy().T).T
 
         fig, ax = plt.subplots()
-        ax.hist(signal_test_arr, bins=30, alpha=0.5, label='Left', edgecolor='black')
-        ax.hist(neutral_test_arr, bins=30, alpha=0.5, label='Right', edgecolor='black')
+        ax.hist(positive_test_arr, bins=30, alpha=0.5, label=emotions[0], edgecolor='black')
+        ax.hist(negative_test_arr, bins=30, alpha=0.5, label=emotions[1], edgecolor='black')
 
         # Adding labels, title, and legend
-        ax.set_title(f"Distribution of {emotion}")
+        ax.set_title(f"Distribution along {emotion}")
         ax.set_xlabel('Value')
         ax.set_ylabel('Frequency')
         ax.legend()
 
-        y_true = np.concatenate([np.ones(len(signal_test_arr)), np.zeros(len(neutral_test_arr))])
+        y_true = np.concatenate([np.ones(len(positive_test_arr)), np.zeros(len(negative_test_arr))])
 
         reg = linear_model.LogisticRegression()
-        reg.fit(np.concatenate([signal_test_arr, neutral_test_arr]), y_true)
+        reg.fit(np.concatenate([positive_test_arr, negative_test_arr]), y_true)
 
         ax.axvline(reg.classes_[0], color='r', linestyle='--')
         # Display the histogram in Streamlit
@@ -172,10 +187,10 @@ def main():
 
         # signal_result_arr = np.array([x < 0 for x in signal_result_arr])
         # neutral_result_arr = np.array([x >= 0 for x in neutral_result_arr])
-        signal_result_arr = reg.predict(signal_test_arr)
-        neutral_result_arr = reg.predict(neutral_test_arr)
+        positive_result_arr = reg.predict(positive_test_arr)
+        negative_result_arr = reg.predict(negative_test_arr)
         
-        y_pred = np.concatenate([signal_result_arr, neutral_result_arr])
+        y_pred = np.concatenate([positive_result_arr, negative_result_arr])
 
         # result_df = (
         #     pl.DataFrame({
@@ -193,11 +208,12 @@ def main():
         
         return Dimension(
             label=emotion,
+            labels=emotions,
             pca=pca,
             reg=reg,
             metrics={
-                "signal": np.mean(signal_result_arr),
-                "neutral": np.mean(neutral_result_arr),
+                "positive": np.mean(positive_result_arr),
+                "negative": np.mean(negative_result_arr),
                 "accuracy": metrics.accuracy_score(y_true, y_pred),
                 "precision": metrics.precision_score(y_true, y_pred),
                 "recall": metrics.recall_score(y_true, y_pred),
@@ -216,10 +232,107 @@ def main():
             # return [train_dimension(emotion, slice(emotion, dataset_df), empty(dataset_df)) 
             #         for emotion in EKMAN_MAP.keys() if emotion != "neutral"]
             return [
-                train_dimension("joy_sadness", slice("joy", dataset_df), slice("sadness", dataset_df)),
-                train_dimension("anger_fear", slice("anger", dataset_df), slice("fear", dataset_df)),
-                train_dimension("surprise_disgust", slice("surprise", dataset_df), slice("disgust", dataset_df)),
+                train_dimension(("joy", "sadness"), slice("joy", dataset_df), slice("sadness", dataset_df)),
+                train_dimension(("anger", "fear"), slice("anger", dataset_df), slice("fear", dataset_df)),
+                train_dimension(("surprise", "disgust"), slice("surprise", dataset_df), slice("disgust", dataset_df)),
             ]
+
+    
+    def eval_logistic(emo_df: pl.DataFrame, emotions: list[DimLabel]) -> None:
+        def linear_predict(emotion: DimLabel, X: np.ndarray, y: np.ndarray, acc: pl.DataFrame) -> tuple[pl.DataFrame, linear_model.LogisticRegression]:
+            X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.8, random_state=42)
+
+            reg = linear_model.LogisticRegression()
+            reg.fit(X_train, y_train)
+            y_pred = reg.predict(X_test)
+
+            df = pl.DataFrame({
+                "emotion": [emotion.label],
+                "accuracy": [metrics.accuracy_score(y_test, y_pred)],
+                "precision": [metrics.precision_score(y_test, y_pred)],
+                "recall": [metrics.recall_score(y_test, y_pred)],
+                "f1": [metrics.f1_score(y_test, y_pred)],
+            })
+            return acc.vstack(df), reg
+
+        emopoint_result_df = pl.DataFrame({
+            "emotion": pl.Series(values=[], dtype=pl.String), 
+            "accuracy": pl.Series(values=[], dtype=pl.Float64), 
+            "precision": pl.Series(values=[], dtype=pl.Float64), 
+            "recall": pl.Series(values=[], dtype=pl.Float64), 
+            "f1": pl.Series(values=[], dtype=pl.Float64), 
+        })
+        orig_result_df = emopoint_result_df.clone()
+
+        for emotion in emotions:
+            
+            cohort_df = emo_df.select(
+                pl.col("embedding").cast(pl.Array(pl.Float32, (1536,))).alias("embedding"), 
+                pl.col("emopoint"),
+
+                pl.when(pl.col(emotion.positive) == 1).then(1)
+                .when(pl.col(emotion.negative) == 1).then(0)
+                .otherwise(None)
+                .alias("y")
+            ).filter(pl.col("y").is_not_null())
+
+            ####################################
+            ## By emopoint
+            ####################################
+            X = cohort_df["emopoint"].to_numpy().reshape(-1, 3)
+            y = cohort_df["y"].to_numpy()
+            
+            emopoint_result_df, reg = linear_predict(emotion, X, y, emopoint_result_df)
+
+            fig = go.Figure(data=[go.Scatter3d(
+                x=X[:, 0], y=X[:, 1], z=X[:, 2],
+                mode='markers',
+                marker=dict(
+                    color=cohort_df.select(
+                        pl.when(pl.col("y") == 1).then(pl.lit('#ff7f0e'))
+                        .otherwise(pl.lit('#1f77b4'))
+                        .alias("color")
+                    )["color"].to_numpy(), 
+                    size=1,
+                    opacity=0.5,
+                ),
+            )])
+            # # Create a meshgrid for the decision boundary
+            # NUM_TICKS = 30
+            # xx, yy = np.meshgrid(np.linspace(X.min(), X.max(), 30), np.linspace(X.min(), X.max(), NUM_TICKS))
+            # a, b, c = reg.coef_[0]
+            # d = reg.intercept_[0]
+            # zz = ((-a * xx) - (b * yy) - d) / c
+            # iz_min, iz_max = np.where(zz < X.min(), zz, -np.inf).argmax(), np.where(zz > X.max(), zz, np.inf).argmin()
+            # print("iz_min", iz_min, (iz_min % NUM_TICKS, iz_min // NUM_TICKS), zz.shape)
+            # print("iz_max", iz_max, (iz_max % NUM_TICKS, iz_max // NUM_TICKS), zz.shape)
+            # fig.add_trace(go.Surface(
+            #     x=xx, y=yy, z=zz,
+            #     colorscale=[[0, 'rgba(0, 0, 0, 0.4)'], [1, 'rgba(0, 0, 0, 0.4)']],
+            #     showscale=False,
+            # ))
+            fig.update_layout(
+                title=emotion.label,
+                scene=dict(
+                    xaxis=dict(title=emotions[0].label),
+                    yaxis=dict(title=emotions[1].label),
+                    zaxis=dict(title=emotions[2].label),
+                ),
+            )
+            st.plotly_chart(fig)
+
+            ####################################
+            ## By original embedding space
+            ####################################
+            X = cohort_df["embedding"].to_numpy().reshape(-1, 1536)
+            y = cohort_df["y"].to_numpy()
+            
+            orig_result_df, reg = linear_predict(emotion, X, y, orig_result_df)
+            
+        st.subheader("Emopoint Performance")
+        st.table(emopoint_result_df)
+        st.subheader(f"1536-dim Performance")
+        st.table(orig_result_df)
 
 
     model = st.selectbox('Model', [
@@ -242,12 +355,13 @@ def main():
     
 
     # if st.button("Train Model"):
+    st.subheader("Single Dimension Analysis")
     dims = train_dimensions_ekman(dataset_df)
     st.table(
         pl.DataFrame({
             "emotion": [dim.label for dim in dims],
-            "signal": [dim.metrics["signal"] for dim in dims],
-            "neutral": [dim.metrics["neutral"] for dim in dims],
+            # "positive": [dim.metrics["positive"] for dim in dims],
+            # "negative": [dim.metrics["negative"] for dim in dims],
             "accuracy": [dim.metrics["accuracy"] for dim in dims],
             "precision": [dim.metrics["precision"] for dim in dims],
             "recall": [dim.metrics["recall"] for dim in dims],
@@ -255,3 +369,16 @@ def main():
             # "roc_auc": [dim.metrics["roc_auc"] for dim in dims],
         })
     )
+
+    emo_model = EmoModel(
+        weights=np.array([dim.pca.components_ for dim in dims]),
+        dims=[DimLabel(*dim.ordered_labels) for dim in dims],
+        num_emb_dims=model.num_dimensions,
+    )
+
+    st.subheader("3D space")
+    with st.spinner(text="Predicting..."):
+        dataset_df = dataset_df.with_columns(pl.col("embedding").cast(pl.Array(pl.Float32, (1536,))))
+        result = emo_model.emb_to_emo(dataset_df["embedding"].to_numpy())
+        emo_df = dataset_df.hstack([pl.Series(values=result.T, name="emopoint")])
+        eval_logistic(emo_df, emo_model.dims)

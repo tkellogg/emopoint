@@ -1,3 +1,4 @@
+from .lib import DimLabel, EmoModel
 
 EMOTIONS = """admiration
 amusement
@@ -37,3 +38,11 @@ EKMAN_MAP = {
     "sadness": ["sadness", "disappointment", "embarrassment", "grief",  "remorse"],
     "surprise": ["surprise", "realization", "confusion", "curiosity"],
 }
+
+
+__all__ = [
+    "EMOTIONS",
+    "EKMAN_MAP",
+    "DimLabel",
+    "EmoModel",
+]
