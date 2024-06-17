@@ -1,6 +1,6 @@
 {
   "name": "emopoint",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "A library for extracting emotion from AI embeddings",
   "main": "index.js",
   "scripts": {

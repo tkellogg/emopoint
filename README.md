@@ -15,3 +15,9 @@ information except for what directly relates to emotion.
 This library enables two modes:
  1. Isolate emotion, converting it into 3D emopoint vectors
  2. Remove emotion, stay in original dimensionality
+
+# Install
+Install using your language's package manager:
+
+* [NPM](https://www.npmjs.com/package/emopoint)
+*

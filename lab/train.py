@@ -352,7 +352,7 @@ def main(model: Model):
     with st.spinner(text="Predicting..."):
         dataset_df = dataset_df.with_columns(pl.col("embedding").cast(pl.Array(pl.Float32, (model.num_dimensions,))))
         result = emo_model.emb_to_emo(dataset_df["embedding"].to_numpy())
-        emo_df = dataset_df.hstack([pl.Series(values=result.T, name="emopoint")])
+        emo_df = dataset_df.hstack([pl.Series(values=result, name="emopoint")])
         eval_logistic(emo_df, emo_model.dims, num_dims=model.num_dimensions)
 
 
