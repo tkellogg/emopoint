@@ -5,3 +5,6 @@
 *.csv
 *.pyc
 __pycache__/
+.vscode/
+
+output/*.html
