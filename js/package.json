@@ -1,0 +1,32 @@
+{
+  "name": "emopoint",
+  "version": "1.0.0",
+  "description": "A library for extracting emotion from AI embeddings",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tkellogg/emopoint.git"
+  },
+  "keywords": [
+    "LLM",
+    "AI",
+    "emotion"
+  ],
+  "author": "Tim Kellogg",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/tkellogg/emopoint/issues"
+  },
+  "homepage": "https://github.com/tkellogg/emopoint#readme",
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.5",
+    "typescript": "^5.4.5"
+  }
+}
