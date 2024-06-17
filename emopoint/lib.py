@@ -69,7 +69,7 @@ class EmoModel:
         is a much smaller vector representing only the emotional aspects of the text.
         """
         arg = self._check_args(emb)
-        return self.weights @ arg
+        return (self.weights @ arg).T
 
     def _check_args(self, emb: np.ndarray | list[float]) -> np.ndarray:
         if isinstance(emb, list):

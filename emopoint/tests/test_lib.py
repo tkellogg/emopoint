@@ -20,6 +20,21 @@ def test_json_io():
     assert em == recreated
 
 
+def test_emb_to_emo():
+    em = EmoModel(
+        weights=np.array([
+            [0.1, 0.1],
+            [0.0, 0.0],
+            [0.1, 0.0],
+        ]),
+        dims=[DimLabel("", "") for _ in range(3)],
+        num_emb_dims=2,
+    )
+    orig = np.array([1.0, 1.0]).reshape(1, -1)
+    res = em.emb_to_emo(orig)
+    assert np.all(res == np.array([[0.2, 0.0, 0.1]]))
+
+
 def test_remove_emo_2d():
     em = EmoModel(
         weights=np.array([
