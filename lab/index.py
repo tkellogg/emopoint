@@ -1,12 +1,9 @@
 import streamlit as st
-from train import Model
+import models
 
 model = st.sidebar.selectbox('Model', [
-    Model("", ""),
-    Model("text-embedding-ada-002", "ada-2"),
-    Model("text-embedding-3-small", "ada-3-small"),
-    Model("text-embedding-3-large", "ada-3-large (min size)", opts={"dimensions": 256}),
-    Model("text-embedding-3-large", "ada-3-large (max size)", opts={"dimensions": 3072}),
+    models.Model("", ""),
+    *models.MODELS,
 ], format_func=lambda model: model.label)
 
 if not model or not model.id:
