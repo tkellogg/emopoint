@@ -2344,3 +2344,6 @@ var ADA_3_SMALL = EmoModel{
 		},
 	},
 }
+
+
+var MODELS []*EmoModel = []*EmoModel{&ADA_2, &ADA_3_SMALL}

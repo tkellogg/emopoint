@@ -3,7 +3,7 @@ import numpy as np
 from emopoint.lib import EmoModel, DimLabel
 
 
-ada_2 = EmoModel(
+ADA_2 = EmoModel(
 	dims=[
 		DimLabel(negative="joy", positive="sadness"),
         DimLabel(negative="anger", positive="fear"),
@@ -1176,7 +1176,7 @@ ada_2 = EmoModel(
 """Emopoint extractor tuned for OpenAI's text-embedding-ada-002"""
 
 
-ada_3_small = EmoModel(
+ADA_3_SMALL = EmoModel(
 	dims=[
 		DimLabel(negative="joy", positive="sadness"),
         DimLabel(negative="anger", positive="fear"),
@@ -2347,3 +2347,5 @@ ada_3_small = EmoModel(
 	]),
 )
 """Emopoint extractor tuned for OpenAI's text-embedding-3-small with 1536 dimensions"""
+
+MODELS = [ADA_2, ADA_3_SMALL]

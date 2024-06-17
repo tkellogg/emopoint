@@ -1,4 +1,5 @@
 from .lib import DimLabel, EmoModel
+from .generated import MODELS
 
 EMOTIONS = """admiration
 amusement
@@ -45,4 +46,5 @@ __all__ = [
     "EKMAN_MAP",
     "DimLabel",
     "EmoModel",
+    "MODELS",
 ]

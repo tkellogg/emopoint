@@ -1,10 +1,9 @@
-import {EmoModel, DimLabel} from .
+import {EmoModel, DimLabel} from './lib';
 
 /** 
  * Emopoint extractor tuned for OpenAI's text-embedding-ada-002
  */
-
-const ADA_2 = EmoModel([
+const ADA_2 = new EmoModel([
     new Float32Array([
       -0.010434664785861969,-0.004927183501422405,0.013593598268926144,0.04752784222364426,
       -0.015238677151501179,-0.0015389879699796438,-0.020793825387954712,0.04353241249918938,
@@ -1178,8 +1177,7 @@ const ADA_2 = EmoModel([
 /** 
  * Emopoint extractor tuned for OpenAI's text-embedding-3-small with 1536 dimensions
  */
-
-const ADA_3_SMALL = EmoModel([
+const ADA_3_SMALL = new EmoModel([
     new Float32Array([
       0.053620219230651855,-0.05234070494771004,0.00032615254167467356,-0.038567010313272476,
       0.01853969879448414,-0.02030120976269245,0.038808878511190414,0.023229332640767097,
@@ -2348,3 +2346,6 @@ const ADA_3_SMALL = EmoModel([
   ],
   1536,
 )
+
+
+export const MODELS = {ADA_2, ADA_3_SMALL};
