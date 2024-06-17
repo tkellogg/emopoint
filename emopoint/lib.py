@@ -80,7 +80,10 @@ class EmoModel:
 
         if len(emb.shape) > 2:
             raise ValueError("Input must be 1- or 2-dimensional.")
-        elif len(emb.shape) == 2:
+        elif len(emb.shape) == 1:
+            emb = emb.reshape(1, -1)
+
+        if len(emb.shape) == 2:
             if emb.shape[0] == self.num_emb_dims:
                 return emb
             elif emb.shape[1] == self.num_emb_dims:
@@ -101,7 +104,7 @@ class EmoModel:
         """
         arg = self._check_args(emb)
         return np.array([
-            self.weights_1d * arg[:, i]
+            arg[:, i] - (self.weights_1d * arg[:, i])
             for i in range(arg.shape[1])
         ])
 

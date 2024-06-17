@@ -30,10 +30,10 @@ def test_remove_emo_2d():
         dims=[DimLabel("", "") for _ in range(3)],
         num_emb_dims=2,
     )
-    orig = np.array([1.0, 1.0])
+    orig = np.array([1.0, 1.0]).reshape(1, -1)
     res = em.remove_emo(orig)
     assert orig.shape == res.shape
-    assert np.all(res == np.array([0.8, 0.9]))
+    assert np.all(res == np.array([0.8, 0.9]).reshape(1, -1))
 
 
 def test_remove_emo_2d_2_examples():
@@ -62,7 +62,7 @@ def test_remove_emo_4d():
         dims=[DimLabel("", "") for _ in range(3)],
         num_emb_dims=4,
     )
-    orig = np.array([1.0, 1.0, 1.0, 1.0])
+    orig = np.array([1.0, 1.0, 1.0, 1.0]).reshape(1, -1)
     res = em.remove_emo(orig)
     assert orig.shape == res.shape
-    assert np.all(res == np.array([0.8, 0.9, 0.9, 0.9]))
+    assert np.all(res == np.array([0.8, 0.9, 0.9, 0.9]).reshape(1, -1))
