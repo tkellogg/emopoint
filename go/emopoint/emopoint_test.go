@@ -1,23 +1,25 @@
-package emopoint
+package emopoint_test
 
 import (
 	"math"
 	"testing"
+
+	emo "github.com/tkellogg/emopoint/go/emopoint"
 )
 
-var model2d EmoModel = EmoModel{
-	Dims: []DimLabel{
-		{Positive: "good", Negative: "bad"},
-		{Positive: "totally", Negative: "kinda"},
-		{Positive: "historical", Negative: "fad"},
-	},
-	numEmbeddingDimensions: 2,
-	Weights: [][]float32{
+var model2d emo.EmoModel = emo.NewEmoModel(
+	[][]float32{
 		{0.1, 0.1},
 		{0.0, 0.0},
 		{0.1, 0.0},
 	},
-}
+	[]emo.DimLabel{
+		{Positive: "good", Negative: "bad"},
+		{Positive: "totally", Negative: "kinda"},
+		{Positive: "historical", Negative: "fad"},
+	},
+	2,
+)
 
 func TestEmbeddingToEmopoint(t *testing.T) {
 	input := []float32{1.0, 1.0}

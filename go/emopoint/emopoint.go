@@ -28,6 +28,10 @@ type EmoModel struct {
 	numEmbeddingDimensions int
 }
 
+func NewEmoModel(weights [][]float32, dims []DimLabel, numEmbeddingDimensions int) EmoModel {
+	return EmoModel{Weights: weights, Dims: dims, numEmbeddingDimensions: numEmbeddingDimensions}
+}
+
 // Convert an embedding to an emopoint. Emopoints are a [3]float32 representing
 // only emotional information.
 func (model *EmoModel) EmbeddingToEmopoint(embedding []float32) ([]float32, error) {
