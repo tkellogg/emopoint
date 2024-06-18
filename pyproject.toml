@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "emopoint"
-version = "0.1.0"
+version = "0.1.2"
 description = "A library for mapping text into a multidimensional embedding space representing emotion"
 authors = ["Tim Kellogg <timothy.kellogg@gmail.com>"]
 license = "Apache 2"
