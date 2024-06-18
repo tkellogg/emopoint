@@ -13,7 +13,8 @@ then
     echo 'JavaScript'
     (cd js && npm publish)
     echo 'Python'
-    poetry publish --build <(yes yes | head -n1)
+    poetry build
+    poetry publish --skip-existing
     exit 0
 fi
 
