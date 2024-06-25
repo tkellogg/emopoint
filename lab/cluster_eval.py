@@ -8,6 +8,7 @@ import streamlit as st
 
 from emopoint import EmoModel
 from train import Model
+from models import MODELS
 
 @dataclasses.dataclass
 class ClusterRes:
@@ -36,7 +37,7 @@ def eval_cluster(df: pl.DataFrame, emo_model: EmoModel) -> ClusterRes:
     return res
 
 
-def main(model: Model):
+def measure_model(model: Model) -> pl.DataFrame:
     model_path = pathlib.Path(f"output/model-{model.label}.json")
     emo_model = EmoModel.from_json(model_path.read_text())
 
@@ -49,11 +50,37 @@ def main(model: Model):
             eval_cluster(expanded_df.filter(pl.col("id") == pl.lit(id)), emo_model)
         )
 
-    st.subheader("Original Embedding Space")
-    st.line_chart(sorted([r.orig for r in results]))
+    return pl.DataFrame({
+        "original": sorted([r.orig for r in results]),
+        "emopoint": sorted([r.emopoint for r in results]),
+        "emotionless": sorted([r.emoless for r in results]),
+    })
 
-    st.subheader("Emopoint Space")
-    st.line_chart(sorted([r.emopoint for r in results]))
+def main(model: Model):
+    res_df = measure_model(model)
+    st.markdown("""
+    ## Distance From Avg
+    For each original text, we modified the emotion while keeping the core meaning as close as possible.
+    I used an LLM to create altered texts. For each original text, I calculated the average distance from the 
+    centroid.
+                
+    * `original` (red) — Bigger means the model captures more emotional information
+    * `emotionless` (pale blue) — The error. How much non-emotion the was added (when instructed to only alter the emotion)
+    * `emopoint` (dark blue) — Same as `original`, but converted to 3D `emopoint` space. The difference from `original` is
+                explained by whatever happens in PCA.
+    """)
+    st.line_chart(res_df)
 
-    st.subheader("Emotionless Embedding Space")
-    st.line_chart(sorted([r.emoless for r in results]))
+    st.subheader("Comparison of original between models")
+    all_models_df = pl.DataFrame({
+        m.label: measure_model(m)["original"]
+        for m in MODELS
+    })
+    st.line_chart(all_models_df)
+
+    st.subheader("Sans Emotion (amount of non-emotion picked up)")
+    all_models_df = pl.DataFrame({
+        m.label: measure_model(m)["emotionless"]
+        for m in MODELS
+    })
+    st.line_chart(all_models_df)

@@ -22,6 +22,8 @@ class EmoModel:
     weights: np.ndarray
     dims: list[DimLabel]
     num_emb_dims: int
+    label: str | None = None
+    model_id: str | None = None
 
     def to_json(self) -> str:
         import json
@@ -38,6 +40,8 @@ class EmoModel:
             weights=d["weights"],
             dims=[DimLabel(**dim) for dim in d["dims"]],
             num_emb_dims=d["num_emb_dims"],
+            label=d.get("label"),
+            model_id=d.get("model_id"),
         )
 
     def __eq__(self, value: object) -> bool:
@@ -96,6 +100,22 @@ class EmoModel:
             else:
                 raise ValueError(f"Input must be an array of shape (*, {self.num_emb_dims}).")
 
+    def isolate_emotion(self, emb: np.ndarray | list[float]) -> np.ndarray:
+        """
+        Take an embedding or a set of embeddings and return a new set of embeddings
+        in the same dimensionality but with emotion isolated.
+        """
+        arg = self._check_args(emb)
+        import time
+        start = time.time()
+        weights_expanded = self.weights[:, np.newaxis, :]
+        mid = time.time()
+        try:
+            return np.sum(weights_expanded * arg.T[np.newaxis, :, :], axis=0)
+        finally:
+            end = time.time()
+            print(f"Elapsed: {mid - start}, {end - mid}")
+
     def remove_emo(self, emb: np.ndarray | list[float]) -> np.ndarray:
         """
         Take an embedding or a set of embeddings and remove the emotional
@@ -103,15 +123,18 @@ class EmoModel:
         but with emotion removed.
         """
         arg = self._check_args(emb)
-        return np.array([
-            arg[:, i] - (self.weights_1d * arg[:, i])
-            for i in range(arg.shape[1])
-        ])
+        emotion_only = self.isolate_emotion(arg)
+        import time
+        start = time.time()
+        try:
+            return arg - emotion_only
+        finally:
+            end = time.time()
+            print(f"Elapsed: {end - start}")
 
-    def magnitude(self, emb: np.ndarray | list[float]) -> list[float]:
+    def emotional_magnitude(self, emb: np.ndarray | list[float]) -> np.ndarray:
         """
-        
+        Magnitutde of emotional vector in original embeddign space.
         """
-        emo = self.emb_to_emo(emb)
-        return [np.linalg.norm(x) for x in emo]
+        return np.linalg.norm(self.isolate_emotion(emb), axis=1).reshape(-1)
         

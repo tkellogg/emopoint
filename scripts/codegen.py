@@ -86,6 +86,8 @@ def do_python_model(model: Model, data: dict) -> str:
 		{dims}
 	],
 	num_emb_dims={data["num_emb_dims"]},
+	label="{data["label"]}",
+	model_id="{data["model_id"]}",
 	weights=np.array([{weights}
 	]),
 )

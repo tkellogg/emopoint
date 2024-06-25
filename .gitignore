@@ -11,3 +11,6 @@ dist/
 output/*.html
 node_modules/
 js/lib/
+*.parquet
+*.parquet.*
+truth_social/

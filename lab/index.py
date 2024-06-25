@@ -9,7 +9,7 @@ model = st.sidebar.selectbox('Model', [
 if not model or not model.id:
     st.stop()
 
-page = st.sidebar.selectbox("Page", ["Explore", "Train", "Sketch", "Text Generation", "Cluster Eval"])
+page = st.sidebar.selectbox("Page", ["", "Explore", "Train", "Sketch", "Text Generation", "Cluster Eval", "Politics"])
 if page == "Explore":
     st.title("Explore")
     import explore
@@ -30,3 +30,7 @@ elif page == "Cluster Eval":
     st.title("Cluster Evaluation")
     import cluster_eval
     cluster_eval.main(model)
+elif page == "Politics":
+    st.title("Politics")
+    import politics
+    politics.main(model)

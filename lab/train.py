@@ -2,7 +2,6 @@ import dataclasses
 import functools
 import pathlib
 
-import dotenv
 import matplotlib.pyplot as plt
 import numpy as np
 from plotly import graph_objects as go
@@ -14,9 +13,6 @@ import streamlit as st
 
 from emopoint import EMOTIONS, EKMAN_MAP, DimLabel, EmoModel
 from models import Model
-
-
-dotenv.load_dotenv()
 
 
 def progress_bar(max, start=None):
@@ -77,8 +73,9 @@ class Dimension:
         if self.metrics["positive"] >= self.metrics["negative"]:
             return self.labels
         else:
-            return self.labels[::-1]
+            return self.labels[::-1]  # reverse
 
+    
 def main(model: Model):
 
     raw_df = pl.concat([
@@ -118,7 +115,7 @@ def main(model: Model):
 
         negative_df = negative_df.sample(positive_df.shape[0])
         positive_train_df, positive_test_df, negative_train_df, negative_test_df = train_test_split(positive_df, negative_df, train_size=0.8)
-        
+
         train_arr = concat(positive_train_df, negative_train_df, num_dims)
 
         pca = PCA(n_components=num_components)
@@ -198,9 +195,9 @@ def main(model: Model):
             # return [train_dimension(emotion, slice(emotion, dataset_df), empty(dataset_df)) 
             #         for emotion in EKMAN_MAP.keys() if emotion != "neutral"]
             return [
-                train_dimension(("joy", "sadness"), slice("joy", dataset_df), slice("sadness", dataset_df), num_dims),
-                train_dimension(("anger", "fear"), slice("anger", dataset_df), slice("fear", dataset_df), num_dims),
-                train_dimension(("surprise", "disgust"), slice("surprise", dataset_df), slice("disgust", dataset_df), num_dims),
+                train_dimension(("sadness", "joy"), slice("joy", dataset_df), slice("sadness", dataset_df), num_dims),
+                train_dimension(("fear", "anger"), slice("anger", dataset_df), slice("fear", dataset_df), num_dims),
+                train_dimension(("disgust", "surprise"), slice("surprise", dataset_df), slice("disgust", dataset_df), num_dims),
             ]
 
     

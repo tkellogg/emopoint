@@ -2076,7 +2076,21 @@ files = [
 [package.extras]
 watchmedo = ["PyYAML (>=3.10)"]
 
+[[package]]
+name = "wikipedia-api"
+version = "0.6.0"
+description = "Python Wrapper for Wikipedia"
+optional = false
+python-versions = "*"
+files = [
+    {file = "Wikipedia-API-0.6.0.tar.gz", hash = "sha256:61e94921cca9ec68e92aa5f258261d6a88b7baa960f9acfcb0c9c2c525dcb3ff"},
+    {file = "Wikipedia_API-0.6.0-py3-none-any.whl", hash = "sha256:6dfd6b3b680e342a3843fe954049c5784c1a67fadc0060f9d1696d1d0e41ecfb"},
+]
+
+[package.dependencies]
+requests = "*"
+
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "76bac15ea5d794e58d3f37e48f7bcba384d386a8c8849e398c457427273bbb0f"
+content-hash = "9acf0a43ebda3dde4d58c5200abe489984babc0143dce1e23724c16c0a1cb650"

@@ -10,6 +10,8 @@ ADA_2 = EmoModel(
         DimLabel(negative="surprise", positive="disgust"),
 	],
 	num_emb_dims=1536,
+	label="ada-2",
+	model_id="text-embedding-ada-002",
 	weights=np.array([
         [
             -0.010434664785861969,-0.004927183501422405,0.013593598268926144,0.04752784222364426,
@@ -1183,6 +1185,8 @@ ADA_3_SMALL = EmoModel(
         DimLabel(negative="surprise", positive="disgust"),
 	],
 	num_emb_dims=1536,
+	label="ada-3-small",
+	model_id="text-embedding-3-small",
 	weights=np.array([
         [
             0.053620219230651855,-0.05234070494771004,0.00032615254167467356,-0.038567010313272476,
@@ -2356,6 +2360,8 @@ ADA_3_LARGE_3072D = EmoModel(
         DimLabel(negative="surprise", positive="disgust"),
 	],
 	num_emb_dims=3072,
+	label="ada-3-large-3072d",
+	model_id="text-embedding-3-large",
 	weights=np.array([
         [
             -0.015848588198423386,-0.031885311007499695,0.01936580054461956,0.0046579414047300816,
@@ -4681,6 +4687,8 @@ ADA_3_LARGE_256D = EmoModel(
         DimLabel(negative="surprise", positive="disgust"),
 	],
 	num_emb_dims=256,
+	label="ada-3-large-256d",
+	model_id="text-embedding-3-large",
 	weights=np.array([
         [
             -0.01565653271973133,-0.060360364615917206,0.02849436178803444,0.008830366656184196,
